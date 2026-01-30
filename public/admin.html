@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard</title>
+  <link rel="stylesheet" href="/styles.css">
+  <style>
+    .admin-container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .admin-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 32px;
+      gap: 16px;
+    }
+
+    .admin-header h1 {
+      margin: 0;
+    }
+
+    .admin-content {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+
+    .admin-section {
+      background: white;
+      border: 1px solid #e4e7eb;
+      border-radius: 12px;
+      padding: 24px;
+    }
+
+    .admin-section h3 {
+      margin-top: 0;
+      margin-bottom: 16px;
+    }
+
+    #users {
+      list-style: none;
+      padding: 0;
+      margin: 16px 0;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+
+    #users li {
+      padding: 12px;
+      background: #f5f7fa;
+      border-radius: 8px;
+      margin-bottom: 8px;
+      font-size: 0.9rem;
+      border-left: 3px solid #0066ff;
+    }
+
+    #attList {
+      background: #0d1117;
+      color: #e6edf3;
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      overflow-x: auto;
+      max-height: 300px;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 0.875rem;
+      font-weight: 500;
+    }
+
+    .form-group input,
+    .form-group select {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid #cbd2d9;
+      border-radius: 6px;
+      font-size: 0.875rem;
+    }
+
+    button {
+      background: #0066ff;
+      color: white;
+      padding: 10px 16px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.875rem;
+      font-weight: 500;
+      transition: background 0.2s;
+    }
+
+    button:hover {
+      background: #0052cc;
+    }
+
+    .btn-secondary {
+      background: #f5f7fa;
+      color: #1a1f36;
+      border: 1px solid #cbd2d9;
+    }
+
+    .btn-secondary:hover {
+      background: #e4e7eb;
+    }
+
+    .btn-logout {
+      background: #de350b;
+    }
+
+    .btn-logout:hover {
+      background: #bf2600;
+    }
+
+    .filters {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+
+    .filters input {
+      flex: 1;
+      min-width: 120px;
+      padding: 8px 12px;
+      border: 1px solid #cbd2d9;
+      border-radius: 6px;
+      font-size: 0.875rem;
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div class="admin-container">
+    <div class="admin-header">
+      <h1>📊 Admin Dashboard</h1>
+      <div style="display: flex; gap: 12px;">
+        <button class="btn-logout" onclick="logout()" style="background: #de350b;">🚪 Logout</button>
+        <button class="btn-logout" onclick="goHome()">← Back Home</button>
+      </div>
+    </div>
+
+    <div class="admin-content">
+      <div class="admin-section">
+        <h3>👥 Employees</h3>
+        <button onclick="loadUsers()">🔄 Reload Employees</button>
+        <ul id="users"></ul>
+
+        <h4 style="margin-top: 24px;">Add New Employee</h4>
+        <form id="createUser">
+          <div class="form-group">
+            <label>Employee ID</label>
+            <input type="text" name="employeeId" placeholder="EMP001" required>
+          </div>
+          <div class="form-group">
+            <label>Name</label>
+            <input type="text" name="name" placeholder="John Doe" required>
+          </div>
+          <div class="form-group">
+            <label>Email</label>
+            <input type="email" name="email" placeholder="john@example.com" required>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Password</label>
+              <input type="password" name="password" placeholder="••••••••" required>
+            </div>
+            <div class="form-group">
+              <label>Role</label>
+              <select name="role" required>
+                <option value="employee">Employee</option>
+                <option value="admin">Admin</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Department</label>
+            <input type="text" name="department" placeholder="General" required>
+          </div>
+          <button type="submit">Add Employee</button>
+        </form>
+      </div>
+
+      <div class="admin-section">
+        <h3>📅 Attendance Records</h3>
+        <div class="filters">
+          <input type="date" id="attDate" placeholder="Date">
+          <input type="text" id="attEmpId" placeholder="Employee ID (optional)">
+          <button class="btn-secondary" onclick="filterAttendance()">🔍 Filter</button>
+        </div>
+        <div id="attList" style="background-color: transparent;">No records loaded. Click Filter to load.</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = '/api';
+
+    function getToken() {
+      return localStorage.getItem('token');
+    }
+
+    async function api(path, opts = {}) {
+      opts.headers = Object.assign({'Content-Type': 'application/json'}, opts.headers || {});
+      const token = getToken();
+      if (token) {
+        opts.headers['Authorization'] = `Bearer ${token}`;
+      }
+      const res = await fetch(path, opts);
+      const data = await res.json();
+      if (!res.ok) {
+        if (res.status === 401) {
+          localStorage.removeItem('token');
+          window.location = '/admin-login';
+          throw new Error('Session expired. Please login again.');
+        }
+        throw new Error(data.message || `API Error: ${res.status}`);
+      }
+      return data;
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      const token = getToken();
+      if (!token) {
+        window.location = '/admin-login';
+        return;
+      }
+      
+      verifySession();
+      setInterval(verifySession, 5 * 60 * 1000);
+      loadUsers();
+    });
+
+    async function verifySession() {
+      try {
+        const response = await fetch('/api/auth/verify', {
+          headers: {
+            'Authorization': `Bearer ${getToken()}`
+          }
+        });
+        
+        if (!response.ok || response.status === 401) {
+          localStorage.removeItem('token');
+          window.location = '/admin-login';
+        }
+      } catch (error) {
+        console.error('Session verification error:', error);
+      }
+    }
+
+    async function logout() {
+      try {
+        await api(`${API_BASE}/auth/logout`, { method: 'POST' });
+      } catch (error) {
+        console.error('Logout error:', error);
+      } finally {
+        localStorage.removeItem('token');
+        window.location = '/';
+      }
+    }
+
+    async function loadUsers() {
+      try {
+        const data = await api(`${API_BASE}/admin/employees`);
+        const ul = document.getElementById('users');
+        ul.innerHTML = '';
+        
+        if (!data.employees || data.employees.length === 0) {
+          ul.innerHTML = '<li>No employees found</li>';
+          return;
+        }
+
+        data.employees.forEach(u => {
+          const li = document.createElement('li');
+          li.innerHTML = `
+            <strong>${u.name}</strong><br>
+            📧 ${u.email}<br>
+            👤 ${u.role} | 🆔 ${u.employeeId || 'N/A'}
+          `;
+          ul.appendChild(li);
+        });
+      } catch (e) {
+        document.getElementById('users').innerHTML = `<li style="color: red;">Error: ${e.message}</li>`;
+        console.error(e);
+      }
+    }
+
+    document.getElementById('createUser').onsubmit = async (e) => {
+      e.preventDefault();
+      try {
+        const form = e.target;
+        const body = {
+          employeeId: form.employeeId.value,
+          name: form.name.value,
+          email: form.email.value,
+          password: form.password.value,
+          role: form.role.value,
+          department: form.department.value || 'General'
+        };
+        await api(`${API_BASE}/admin/employees`, { method: 'POST', body: JSON.stringify(body) });
+        alert('Employee added successfully!');
+        form.reset();
+        loadUsers();
+      } catch (e) {
+        alert(`Error: ${e.message}`);
+      }
+    };
+
+    function formatTimeAMPM(value) {
+      if (!value) return '—';
+      const date = new Date(value);
+      if (isNaN(date.getTime())) return '—';
+
+      let hours = date.getHours();
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      hours = hours % 12 || 12;
+      return `${String(hours).padStart(2, '0')}:${minutes} ${ampm}`;
+    }
+
+    function calculateWorkingHours(checkIn, checkOut, lunchOut, lunchIn) {
+      if (!checkIn) return { working: 'Not checked in', breakHours: '—' };
+
+      const start = new Date(checkIn).getTime();
+      let end = checkOut ? new Date(checkOut).getTime() : Date.now(); // use current time if not checked out yet
+
+      let totalMs = end - start;
+      let breakMs = 0;
+
+      if (lunchOut && lunchIn) {
+        breakMs = new Date(lunchIn).getTime() - new Date(lunchOut).getTime();
+        if (breakMs > 0) totalMs -= breakMs;
+      } else if (lunchOut) {
+        // Lunch started but not finished → subtract ongoing break
+        breakMs = Date.now() - new Date(lunchOut).getTime();
+      }
+
+      const formatMs = (ms) => {
+        if (ms <= 0) return '—';
+        const h = Math.floor(ms / 3600000);
+        const m = Math.floor((ms % 3600000) / 60000);
+        const s = Math.floor((ms % 60000) / 1000);
+        let str = '';
+        if (h) str += h + 'h ';
+        if (m || h) str += m + 'm ';
+        if (s || m || h) str += s + 's';
+        return str.trim() || '0s';
+      };
+
+      return {
+        working: formatMs(totalMs),
+        breakHours: breakMs > 0 ? formatMs(breakMs) : '—'
+      };
+    }
+
+    async function filterAttendance() {
+      try {
+        const attList = document.getElementById('attList');
+        attList.innerHTML = '<div style="padding:20px; text-align:center; color:#0066ff;">Loading attendance records...</div>';
+
+        const date = document.getElementById('attDate').value || new Date().toISOString().split('T')[0];
+        const empIdFilter = document.getElementById('attEmpId').value.trim();
+
+        const path = `${API_BASE}/admin/attendance/date/${date}`;
+        const data = await api(path);
+        let records = data.records || [];
+
+        if (empIdFilter) {
+          records = records.filter(r => 
+            (r.employeeId?.employeeId || r.employeeId?._id || '') === empIdFilter
+          );
+        }
+
+        if (records.length === 0) {
+          attList.innerHTML = '<p style="color:#666; padding:24px; text-align:center; font-size:1rem;">📭 No records found for this date</p>';
+          return;
+        }
+
+        let tableHTML = `
+          <table style="width: 100%; border-collapse: collapse; border: 1px solid #e4e7eb; font-size: 0.9rem;">
+            <thead>
+              <tr style="background: linear-gradient(135deg, #0066ff 0%, #0052cc 100%); color: white;">
+                <th style="padding: 16px; text-align: left; font-weight: 600; border-radius: 8px 0 0 0;">Employee</th>
+                <th style="padding: 16px; text-align: left; font-weight: 600;">Emp ID</th>
+                <th style="padding: 16px; text-align: center; font-weight: 600;">Status</th>
+                <th style="padding: 16px; text-align: center; font-weight: 600;">Check-in</th>
+                <th style="padding: 16px; text-align: center; font-weight: 600;">Check-out</th>
+                <th style="padding: 16px; text-align: center; font-weight: 600;">Work Hours</th>
+                <th style="padding: 16px; text-align: center; font-weight: 600; border-radius: 0 8px 0 0;">Break Hours</th>
+              </tr>
+            </thead>
+            <tbody>
+        `;
+
+        records.forEach((record, index) => {
+          const bgColor = index % 2 === 0 ? '#ffffff' : '#f8f9fb';
+          const borderColor = index % 2 === 0 ? '#e4e7eb' : '#dfe3eb';
+          const empName = record.employeeId?.name || '—';
+          const empId = record.employeeId?.employeeId || record.employeeId?._id || '—';
+
+          // Try all reasonable field name variations
+          const checkIn  = formatTimeAMPM(record.checkIn || record.checkInTime || record.checkin || record.checkInDate);
+          const checkOut = formatTimeAMPM(record.checkOut || record.checkOutTime || record.checkout || record.checkOutDate);
+
+          const hoursInfo = calculateWorkingHours(
+            record.checkIn || record.checkInTime,
+            record.checkOut || record.checkOutTime,
+          );
+
+          const statusBadge = `
+            <span style="background: ${record.status === 'present' ? '#dffcf0' : '#fce8e6'}; 
+                         color: ${record.status === 'present' ? '#00875a' : '#de350b'}; 
+                         padding: 6px 12px; border-radius: 6px; font-size: 0.8rem; font-weight: 700;">
+              ${record.status === 'present' ? '✓ PRESENT' : '✗ ABSENT'}${!record.checkOut ? ' (ongoing)' : ''}
+            </span>
+          `;
+
+          tableHTML += `
+            <tr style="background: ${bgColor}; border-bottom: 1px solid ${borderColor};">
+              <td style="padding: 14px 16px; font-weight: 600; color: #1a1f36;">${empName}</td>
+              <td style="padding: 14px 16px; color: #666; font-family: monospace; background: #f5f7fa; border-radius: 4px;">${empId}</td>
+              <td style="padding: 14px 16px; text-align: center;">${statusBadge}</td>
+              <td style="padding: 14px 16px; text-align: center; color: ${checkIn === '—' ? '#999' : '#00875a'}; font-weight: 600;">${checkIn}</td>
+              <td style="padding: 14px 16px; text-align: center; color: ${checkOut === '—' ? '#999' : '#de350b'}; font-weight: 600;">${checkOut}</td>
+              <td style="padding: 14px 16px; text-align: center; color: #0066ff; font-weight: 700; background: #f0f4ff; border-radius: 4px;">${hoursInfo.working}</td>
+              <td style="padding: 14px 16px; text-align: center; color: #ff991f; font-weight: 700; background: #fffbf0; border-radius: 4px;">${hoursInfo.breakHours}</td>
+            </tr>
+          `;
+        });
+
+        tableHTML += '</tbody></table>';
+        document.getElementById('attList').innerHTML = tableHTML;
+      } catch (e) {
+        document.getElementById('attList').innerHTML = 
+          `<p style="color: red; padding: 16px; background: #ffebe6; border-radius: 6px; text-align: center;">
+             ❌ ${e.message || 'Failed to load attendance records'}
+           </p>`;
+      }
+    }
+
+    function goHome() {
+      window.location = '/';
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Employee Dashboard</title>
+  <link rel="stylesheet" href="/styles.css">
+  <style>
+    .employee-container {
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    .employee-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 32px;
+      gap: 16px;
+    }
+
+    .employee-header h1 {
+      margin: 0;
+    }
+
+    .employee-card {
+      background: white;
+      border: 1px solid #e4e7eb;
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+
+    .employee-card h3 {
+      margin-top: 0;
+      margin-bottom: 20px;
+    }
+
+    .button-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    @media (max-width: 600px) {
+      .button-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .button-grid button {
+      padding: 14px 16px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      height: 100%;
+    }
+
+    button {
+      background: #0066ff;
+      color: white;
+      padding: 10px 16px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.875rem;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+
+    button:hover:not(:disabled) {
+      background: #0052cc;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 102, 255, 0.3);
+    }
+
+    button:active:not(:disabled) {
+      transform: translateY(0);
+    }
+
+    button:disabled {
+      cursor: not-allowed;
+      opacity: 0.5;
+    }
+
+    .btn-back {
+      background: #de350b;
+    }
+
+    .btn-back:hover {
+      background: #bf2600;
+    }
+
+    .btn-checkin {
+      background: #00875a;
+    }
+
+    .btn-checkin:hover:not(:disabled) {
+      background: #006644;
+    }
+
+    .btn-lunchout {
+      background: #ff991f;
+    }
+
+    .btn-lunchout:hover:not(:disabled) {
+      background: #ff7f00;
+    }
+
+    .btn-lunchin {
+      background: #0066ff;
+    }
+
+    .btn-lunchin:hover:not(:disabled) {
+      background: #0052cc;
+    }
+
+    .btn-checkout {
+      background: #de350b;
+    }
+
+    .btn-checkout:hover:not(:disabled) {
+      background: #bf2600;
+    }
+
+    #status {
+      background: #f5f7fa;
+      color: #1a1f36;
+      padding: 16px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      overflow-x: auto;
+      border: 1px solid #cbd2d9;
+      min-height: 80px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .message {
+      padding: 12px 16px;
+      border-radius: 6px;
+      margin-bottom: 16px;
+      font-size: 0.875rem;
+      animation: slideIn 0.3s ease;
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .message.success {
+      background: #e3fcef;
+      color: #00875a;
+      border: 1px solid rgba(0, 135, 90, 0.2);
+    }
+
+    .message.error {
+      background: #ffebe6;
+      color: #de350b;
+      border: 1px solid rgba(222, 53, 11, 0.2);
+    }
+
+    .message.info {
+      background: #e6f0ff;
+      color: #0066ff;
+      border: 1px solid rgba(0, 102, 255, 0.2);
+    }
+  </style>
+</head>
+<body>
+  <div class="employee-container">
+    <div class="employee-header">
+      <h1>👤 Employee - Quick Access</h1>
+      <div style="display: flex; gap: 12px;">
+        <button class="btn-back" onclick="logout()">🚪 Logout</button>
+        <button class="btn-back" onclick="goHome()">← Back Home</button>
+      </div>
+    </div>
+
+    <div id="message"></div>
+
+    <div class="employee-card">
+      <h3>🕐 Today's Attendance</h3>
+      <div style="background: #f0f4ff; padding: 12px; border-radius: 6px; margin-bottom: 16px; font-size: 0.85rem; border-left: 3px solid #0066ff;">
+        <strong>📋 Workflow:</strong> Check In → Lunch Out → Lunch In → Check Out
+      </div>
+      <div class="button-grid">
+        <button id="checkInBtn" class="btn-checkin" onclick="checkIn()">✓ Check In</button>
+        <button id="lunchOutBtn" class="btn-lunchout" onclick="lunchOut()">🍽️ Lunch Out</button>
+        <button id="lunchInBtn" class="btn-lunchin" onclick="lunchIn()">🍽️ Lunch In</button>
+        <button id="checkOutBtn" class="btn-checkout" onclick="checkOut()">✓ Check Out</button>
+      </div>
+    </div>
+
+    <div class="employee-card">
+      <h3>📊 Status</h3>
+      <pre id="status">Loading today's status...</pre>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = '/api';
+    let attendanceState = {
+      checkedIn: false,
+      lunchedOut: false,
+      lunchedIn: false,
+      checkedOut: false
+    };
+
+    let isProcessing = false;
+
+    function showMessage(message, type = 'info') {
+      const msgDiv = document.getElementById('message');
+      msgDiv.textContent = message;
+      msgDiv.className = `message ${type}`;
+      setTimeout(() => { msgDiv.textContent = ''; msgDiv.className = ''; }, 5000);
+    }
+
+    function updateStatus(main, extra = '') {
+      const time = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
+      document.getElementById('status').innerText = `${main}${extra ? '\n' + extra : ''}\n\n⏰ ${time}`;
+    }
+
+    function getToken() {
+      return localStorage.getItem('token');
+    }
+
+    async function api(path, opts = {}) {
+      const headers = { 'Content-Type': 'application/json' };
+      const token = getToken();
+      if (token) headers.Authorization = `Bearer ${token}`;
+
+      const res = await fetch(`${API_BASE}${path.startsWith('/') ? '' : '/'}${path}`, {
+        ...opts,
+        headers
+      });
+
+      let data;
+      try { data = await res.json(); } catch { data = {}; }
+
+      if (!res.ok) {
+        if (res.status === 401) {
+          localStorage.removeItem('token');
+          window.location = '/employee-login';
+        }
+        throw new Error(data.message || `API Error ${res.status}`);
+      }
+      return data;
+    }
+
+    async function fetchTodayAttendance() {
+      try {
+        const data = await api('/employee/today-status');
+        if (data?.attendance) {
+          attendanceState.checkedIn  = !!data.attendance.checkInTime;
+          attendanceState.lunchedOut = !!data.attendance.lunchOutTime;
+          attendanceState.lunchedIn  = !!data.attendance.lunchInTime;
+          attendanceState.checkedOut = !!data.attendance.checkOutTime;
+
+          updateButtonStates();
+
+          if (attendanceState.checkedOut) {
+            updateStatus('✓ ALREADY CHECKED OUT', 'Today’s attendance is complete.');
+          } else if (attendanceState.lunchedIn) {
+            updateStatus('Working after lunch', 'Remember to check out before leaving.');
+          } else if (attendanceState.lunchedOut) {
+            updateStatus('🍽️ ON LUNCH BREAK', 'Record lunch in when you return.');
+          } else if (attendanceState.checkedIn) {
+            updateStatus('✓ CHECKED IN', 'You are marked present today.');
+          } else {
+            updateStatus('Ready to start', 'Click Check In to begin your day.');
+          }
+        }
+      } catch (err) {
+        console.error('Fetch today status failed:', err);
+        updateStatus('Status load failed', err.message);
+      }
+    }
+
+    function updateButtonStates() {
+      const ci = document.getElementById('checkInBtn');
+      const lo = document.getElementById('lunchOutBtn');
+      const li = document.getElementById('lunchInBtn');
+      const co = document.getElementById('checkOutBtn');
+
+      if (!ci || !lo || !li || !co) return;
+
+      const lunchIncomplete = attendanceState.lunchedOut && !attendanceState.lunchedIn;
+
+      ci.disabled = attendanceState.checkedIn || isProcessing;
+      lo.disabled = !attendanceState.checkedIn || attendanceState.lunchedOut || attendanceState.checkedOut || lunchIncomplete || isProcessing;
+      li.disabled = !attendanceState.lunchedOut || attendanceState.lunchedIn || attendanceState.checkedOut || isProcessing;
+      co.disabled = !attendanceState.checkedIn || attendanceState.checkedOut || lunchIncomplete || isProcessing;
+
+      ci.textContent = attendanceState.checkedIn ? '✓ Checked In' : '✓ Check In';
+      lo.textContent = attendanceState.lunchedOut ? '✓ Lunched Out' : '🍽️ Lunch Out';
+      li.textContent = attendanceState.lunchedIn  ? '✓ Lunched In'  : '🍽️ Lunch In';
+      co.textContent = attendanceState.checkedOut ? '✓ Checked Out' : '✓ Check Out';
+    }
+
+    async function performAction(endpoint, successMsg, successStatus, alreadyMsg = 'Already done today') {
+      if (isProcessing) return;
+      isProcessing = true;
+      updateButtonStates();
+
+      try {
+        await api(`/employee/${endpoint}`, { method: 'POST', body: '{}' });
+        await fetchTodayAttendance();
+        showMessage(successMsg, 'success');
+        updateStatus(successStatus);
+      } catch (err) {
+        const msg = err.message.toLowerCase();
+        if (msg.includes('already') || msg.includes('checked') || msg.includes('duplicate')) {
+          showMessage(alreadyMsg, 'error');
+          // Force sync state in case server rejected
+          await fetchTodayAttendance();
+        } else {
+          showMessage(`Error: ${err.message}`, 'error');
+        }
+      } finally {
+        isProcessing = false;
+        updateButtonStates();
+      }
+    }
+
+    function checkIn() {
+      performAction('checkin', '✓ Checked in successfully!', 'You are now marked as present.', '⚠️ You have already checked in today!');
+    }
+
+    function lunchOut() {
+      performAction('lunchout', '🍽️ Lunch out recorded!', 'Enjoy your lunch break!', '⚠️ Lunch out already recorded!');
+    }
+
+    function lunchIn() {
+      performAction('lunchin', '🍽️ Lunch in recorded!', 'Welcome back! Continue working.', '⚠️ Lunch in already recorded!');
+    }
+
+    function checkOut() {
+      performAction('checkout', '✓ Checked out successfully!', 'Have a great day! See you tomorrow.', '⚠️ You have already checked out!');
+    }
+
+    async function logout() {
+      try {
+        await api('/auth/logout', { method: 'POST' });
+      } catch (err) {
+        console.error(err);
+      } finally {
+        localStorage.removeItem('token');
+        window.location = '/';
+      }
+    }
+
+    function goHome() {
+      window.location = '/';
+    }
+
+    // ─── Initialization ────────────────────────────────────────────────
+    window.addEventListener('DOMContentLoaded', async () => {
+      if (!getToken()) {
+        window.location = '/employee-login';
+        return;
+      }
+
+      await fetchTodayAttendance();           // Load real state on page open
+      setInterval(fetchTodayAttendance, 120000); // Refresh every 2 minutes
+    });
+  </script>
+</body>
+</html>

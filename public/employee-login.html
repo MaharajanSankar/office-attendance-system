@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Employee Login - Office Attendance System</title>
+  <link rel="stylesheet" href="/styles.css">
+  <style>
+    .login-wrapper {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    }
+
+    .login-card {
+      width: 100%;
+      max-width: 420px;
+      background: white;
+      border-radius: 12px;
+      padding: 40px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    }
+
+    .login-header {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+
+    .login-header h1 {
+      margin-bottom: 8px;
+      font-size: 1.75rem;
+      color: #333;
+    }
+
+    .login-header p {
+      color: #666;
+      font-size: 0.9375rem;
+    }
+
+    .role-badge {
+      display: inline-block;
+      background: #10b981;
+      color: white;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      margin-top: 8px;
+    }
+
+    .error-message {
+      padding: 12px 16px;
+      background: #fee;
+      color: #c33;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      font-size: 0.9375rem;
+      border: 1px solid #fcc;
+      display: none;
+    }
+
+    .error-message.show {
+      display: block;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 500;
+      color: #333;
+      font-size: 0.9375rem;
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 1rem;
+      transition: border-color 0.3s;
+    }
+
+    .form-group input:focus {
+      outline: none;
+      border-color: #10b981;
+      box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+    }
+
+    .form-actions {
+      margin-top: 24px;
+    }
+
+    .form-actions button {
+      width: 100%;
+      padding: 12px;
+      background: #10b981;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    .form-actions button:hover:not(:disabled) {
+      background: #059669;
+    }
+
+    .form-actions button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .demo-credentials {
+      margin-top: 24px;
+      padding: 16px;
+      background: #f0fdf4;
+      border-radius: 8px;
+      border: 1px solid rgba(16, 185, 129, 0.2);
+    }
+
+    .demo-credentials h6 {
+      margin-bottom: 12px;
+      color: #10b981;
+      font-size: 0.875rem;
+      font-weight: 600;
+    }
+
+    .demo-credentials p {
+      margin: 4px 0;
+      font-size: 0.875rem;
+      color: #555;
+      font-family: 'Courier New', monospace;
+    }
+
+    .demo-credentials .note {
+      margin-top: 8px;
+      font-size: 0.8125rem;
+      color: #666;
+      font-style: italic;
+    }
+
+    .back-link {
+      text-align: center;
+      margin-top: 20px;
+    }
+
+    .back-link a {
+      color: #10b981;
+      text-decoration: none;
+      font-size: 0.9375rem;
+      transition: color 0.3s;
+    }
+
+    .back-link a:hover {
+      color: #059669;
+      text-decoration: underline;
+    }
+
+    .loading {
+      opacity: 0.6;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="login-wrapper">
+    <div class="login-card">
+      <div class="login-header">
+        <h1>Office Attendance System</h1>
+        <p>Employee Login</p>
+        <span class="role-badge">👤 EMPLOYEE</span>
+      </div>
+
+      <div id="errorMessage" class="error-message"></div>
+
+      <form id="loginForm">
+        <div class="form-group">
+          <label for="email">Email Address</label>
+          <input 
+            type="email" 
+            id="email" 
+            name="email" 
+            placeholder="Enter your email"
+            autocomplete="email"
+            required
+          >
+        </div>
+
+        <div class="form-group">
+          <label for="password">Password</label>
+          <input 
+            type="password" 
+            id="password" 
+            name="password" 
+            placeholder="Enter your password"
+            autocomplete="current-password"
+            required
+          >
+        </div>
+
+        <div class="form-actions">
+          <button type="submit" id="loginBtn">Sign In</button>
+        </div>
+      </form>
+
+      <div class="demo-credentials">
+        <h6>Demo Employee Account</h6>
+        <p>Email: <strong>john.doe@example.com</strong></p>
+        <p>Password: <strong>123</strong></p>
+        <div class="note">Create a new account for testing or contact your admin</div>
+      </div>
+
+      <div class="back-link">
+        <a href="/">← Back to Selection</a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const loginForm = document.getElementById('loginForm');
+    const loginBtn = document.getElementById('loginBtn');
+    const errorMessage = document.getElementById('errorMessage');
+    const emailInput = document.getElementById('email');
+    const passwordInput = document.getElementById('password');
+
+    // Check if already logged in
+    window.addEventListener('DOMContentLoaded', () => {
+      const token = localStorage.getItem('token');
+      if (token) {
+        verifyTokenAndRedirect(token);
+      }
+    });
+
+    // Verify token and redirect
+    async function verifyTokenAndRedirect(token) {
+      try {
+        const response = await fetch('/api/auth/verify', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.user.role === 'employee') {
+            window.location.href = '/employee';
+            return;
+          }
+        }
+        
+        // Invalid token, clear it
+        localStorage.removeItem('token');
+      } catch (error) {
+        localStorage.removeItem('token');
+      }
+    }
+
+    // Show error message
+    function showError(message) {
+      errorMessage.textContent = message;
+      errorMessage.classList.add('show');
+      
+      // Auto-hide after 5 seconds
+      setTimeout(() => {
+        errorMessage.classList.remove('show');
+      }, 5000);
+    }
+
+    // Hide error message
+    function hideError() {
+      errorMessage.classList.remove('show');
+    }
+
+    // Handle form submission
+    loginForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      hideError();
+
+      const email = emailInput.value.trim();
+      const password = passwordInput.value;
+
+      // Basic validation
+      if (!email || !password) {
+        showError('Please enter both email and password');
+        return;
+      }
+
+      // Disable form
+      loginBtn.disabled = true;
+      loginBtn.textContent = 'Signing in...';
+      loginForm.classList.add('loading');
+
+      try {
+        const response = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ email, password })
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+          // Verify user is employee (allow both employee and non-admin roles)
+          if (data.user.role === 'admin') {
+            showError('Employee access required. Please use the admin login.');
+            loginBtn.disabled = false;
+            loginBtn.textContent = 'Sign In';
+            loginForm.classList.remove('loading');
+            passwordInput.value = '';
+            return;
+          }
+
+          // Save token to localStorage
+          localStorage.setItem('token', data.token);
+          
+          // Redirect to employee dashboard
+          window.location.href = '/employee';
+        } else {
+          // Show error message
+          showError(data.message || 'Invalid username or password');
+          
+          // Re-enable form
+          loginBtn.disabled = false;
+          loginBtn.textContent = 'Sign In';
+          loginForm.classList.remove('loading');
+          
+          // Clear password field
+          passwordInput.value = '';
+          passwordInput.focus();
+        }
+      } catch (error) {
+        console.error('Login error:', error);
+        showError('Invalid username or password');
+        
+        // Re-enable form
+        loginBtn.disabled = false;
+        loginBtn.textContent = 'Sign In';
+        loginForm.classList.remove('loading');
+        
+        // Clear password field
+        passwordInput.value = '';
+      }
+    });
+
+    // Clear error on input
+    emailInput.addEventListener('input', hideError);
+    passwordInput.addEventListener('input', hideError);
+  </script>
+</body>
+</html>
