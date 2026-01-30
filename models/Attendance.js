@@ -15,7 +15,7 @@ const attendanceSchema = new mongoose.Schema({
   status: {
     type: String,
     enum: ['present', 'absent', 'leave', 'half-day', 'check-in', 'check-out', 'lunch-out', 'lunch-in'],
-    required: [true, 'Status is required']
+    default: 'absent'  // default to absent until first action
   },
   checkInTime: {
     type: Date,
@@ -50,63 +50,64 @@ const attendanceSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Index on employeeId and date for querying, but NOT unique (allows multiple entries per day)
-attendanceSchema.index({ employeeId: 1, date: 1 });
+// Keep unique index — this prevents duplicates (very important!)
+attendanceSchema.index({ employeeId: 1, date: 1 }, { unique: true });
 
-// Static method to mark attendance - creates a new entry each time
+// UPDATED MARK METHOD — now upserts (update or create)
 attendanceSchema.statics.mark = async function(data) {
   const { employeeId, date, status, remarks, markedBy } = data;
-  
-  const entryData = {
-    employeeId,
-    date,
-    status,
-    remarks: remarks || '',
-    markedBy: markedBy || 'system',
-    markedAt: new Date()
+
+  const update = {
+    $set: {
+      status,
+      remarks: remarks || '',
+      markedBy: markedBy || 'system',
+      markedAt: new Date(),
+      updatedAt: new Date()
+    }
   };
 
-  // Handle different statuses to track times properly
+  // Set the correct time field based on action
   if (status === 'check-in') {
-    entryData.checkInTime = new Date();
-    entryData.status = 'check-in';
+    update.$set.checkInTime = new Date();
   } else if (status === 'lunch-out') {
-    entryData.lunchOutTime = new Date();
-    entryData.status = 'lunch-out';
+    update.$set.lunchOutTime = new Date();
   } else if (status === 'lunch-in') {
-    entryData.lunchInTime = new Date();
-    entryData.status = 'lunch-in';
+    update.$set.lunchInTime = new Date();
   } else if (status === 'check-out') {
-    entryData.checkOutTime = new Date();
-    entryData.status = 'check-out';
+    update.$set.checkOutTime = new Date();
+    update.$set.status = 'present';  // final status after checkout
   }
 
-  // Create a new document instead of updating
-  return this.create(entryData).then(doc => 
-    doc.populate('employeeId', 'name email employeeId department')
-  );
+  // Upsert: update existing document or create new one
+  return this.findOneAndUpdate(
+    { employeeId, date },          // match by employee + date
+    update,
+    {
+      upsert: true,                // create if not exists
+      new: true,                   // return updated document
+      setDefaultsOnInsert: true    // apply defaults on new doc
+    }
+  ).populate('employeeId', 'name email employeeId department');
 };
 
-// Get attendance by date
+// All your other static methods remain unchanged
 attendanceSchema.statics.getByDate = async function(date) {
   return this.find({ date })
     .populate('employeeId', 'name email employeeId department')
     .sort({ createdAt: -1 });
 };
 
-// Get attendance by employee
 attendanceSchema.statics.getByEmployee = async function(employeeId) {
   return this.find({ employeeId })
     .sort({ date: -1 });
 };
 
-// Get attendance by employee and date
 attendanceSchema.statics.getByEmployeeAndDate = async function(employeeId, date) {
   return this.findOne({ employeeId, date })
     .populate('employeeId', 'name email employeeId department');
 };
 
-// Get attendance report
 attendanceSchema.statics.getReport = async function(startDate, endDate) {
   const query = {};
   
@@ -123,7 +124,6 @@ attendanceSchema.statics.getReport = async function(startDate, endDate) {
     .sort({ date: -1 });
 };
 
-// Get employee statistics
 attendanceSchema.statics.getEmployeeStats = async function(employeeId, startDate, endDate) {
   const query = { employeeId };
   
@@ -146,7 +146,6 @@ attendanceSchema.statics.getEmployeeStats = async function(employeeId, startDate
   };
 };
 
-// Bulk mark attendance
 attendanceSchema.statics.bulkMark = async function(records, markedBy) {
   const bulkOps = records.map(record => ({
     updateOne: {
@@ -155,7 +154,8 @@ attendanceSchema.statics.bulkMark = async function(records, markedBy) {
         status: record.status,
         remarks: record.remarks || '',
         markedBy: markedBy || 'system',
-        markedAt: new Date()
+        markedAt: new Date(),
+        updatedAt: new Date()
       },
       upsert: true
     }

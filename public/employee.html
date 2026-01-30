@@ -99,22 +99,6 @@
       background: #006644;
     }
 
-    .btn-lunchout {
-      background: #ff991f;
-    }
-
-    .btn-lunchout:hover:not(:disabled) {
-      background: #ff7f00;
-    }
-
-    .btn-lunchin {
-      background: #0066ff;
-    }
-
-    .btn-lunchin:hover:not(:disabled) {
-      background: #0052cc;
-    }
-
     .btn-checkout {
       background: #de350b;
     }
@@ -168,12 +152,6 @@
       color: #de350b;
       border: 1px solid rgba(222, 53, 11, 0.2);
     }
-
-    .message.info {
-      background: #e6f0ff;
-      color: #0066ff;
-      border: 1px solid rgba(0, 102, 255, 0.2);
-    }
   </style>
 </head>
 <body>
@@ -191,12 +169,10 @@
     <div class="employee-card">
       <h3>🕐 Today's Attendance</h3>
       <div style="background: #f0f4ff; padding: 12px; border-radius: 6px; margin-bottom: 16px; font-size: 0.85rem; border-left: 3px solid #0066ff;">
-        <strong>📋 Workflow:</strong> Check In → Lunch Out → Lunch In → Check Out
+        <strong>📋 Workflow:</strong> Check In → Check Out (once per day)
       </div>
       <div class="button-grid">
         <button id="checkInBtn" class="btn-checkin" onclick="checkIn()">✓ Check In</button>
-        <button id="lunchOutBtn" class="btn-lunchout" onclick="lunchOut()">🍽️ Lunch Out</button>
-        <button id="lunchInBtn" class="btn-lunchin" onclick="lunchIn()">🍽️ Lunch In</button>
         <button id="checkOutBtn" class="btn-checkout" onclick="checkOut()">✓ Check Out</button>
       </div>
     </div>
@@ -211,8 +187,6 @@
     const API_BASE = '/api';
     let attendanceState = {
       checkedIn: false,
-      lunchedOut: false,
-      lunchedIn: false,
       checkedOut: false
     };
 
@@ -239,11 +213,7 @@
       const token = getToken();
       if (token) headers.Authorization = `Bearer ${token}`;
 
-      const res = await fetch(`${API_BASE}${path.startsWith('/') ? '' : '/'}${path}`, {
-        ...opts,
-        headers
-      });
-
+      const res = await fetch(`${API_BASE}${path}`, { ...opts, headers });
       let data;
       try { data = await res.json(); } catch { data = {}; }
 
@@ -262,22 +232,16 @@
         const data = await api('/employee/today-status');
         if (data?.attendance) {
           attendanceState.checkedIn  = !!data.attendance.checkInTime;
-          attendanceState.lunchedOut = !!data.attendance.lunchOutTime;
-          attendanceState.lunchedIn  = !!data.attendance.lunchInTime;
           attendanceState.checkedOut = !!data.attendance.checkOutTime;
 
           updateButtonStates();
 
           if (attendanceState.checkedOut) {
-            updateStatus('✓ ALREADY CHECKED OUT', 'Today’s attendance is complete.');
-          } else if (attendanceState.lunchedIn) {
-            updateStatus('Working after lunch', 'Remember to check out before leaving.');
-          } else if (attendanceState.lunchedOut) {
-            updateStatus('🍽️ ON LUNCH BREAK', 'Record lunch in when you return.');
+            updateStatus('✓ CHECKED OUT', 'Today’s attendance complete. See you tomorrow!');
           } else if (attendanceState.checkedIn) {
-            updateStatus('✓ CHECKED IN', 'You are marked present today.');
+            updateStatus('✓ CHECKED IN', 'Remember to check out before leaving.');
           } else {
-            updateStatus('Ready to start', 'Click Check In to begin your day.');
+            updateStatus('Ready to start', 'Click Check In to begin.');
           }
         }
       } catch (err) {
@@ -288,26 +252,18 @@
 
     function updateButtonStates() {
       const ci = document.getElementById('checkInBtn');
-      const lo = document.getElementById('lunchOutBtn');
-      const li = document.getElementById('lunchInBtn');
       const co = document.getElementById('checkOutBtn');
 
-      if (!ci || !lo || !li || !co) return;
-
-      const lunchIncomplete = attendanceState.lunchedOut && !attendanceState.lunchedIn;
+      if (!ci || !co) return;
 
       ci.disabled = attendanceState.checkedIn || isProcessing;
-      lo.disabled = !attendanceState.checkedIn || attendanceState.lunchedOut || attendanceState.checkedOut || lunchIncomplete || isProcessing;
-      li.disabled = !attendanceState.lunchedOut || attendanceState.lunchedIn || attendanceState.checkedOut || isProcessing;
-      co.disabled = !attendanceState.checkedIn || attendanceState.checkedOut || lunchIncomplete || isProcessing;
+      co.disabled = !attendanceState.checkedIn || attendanceState.checkedOut || isProcessing;
 
       ci.textContent = attendanceState.checkedIn ? '✓ Checked In' : '✓ Check In';
-      lo.textContent = attendanceState.lunchedOut ? '✓ Lunched Out' : '🍽️ Lunch Out';
-      li.textContent = attendanceState.lunchedIn  ? '✓ Lunched In'  : '🍽️ Lunch In';
       co.textContent = attendanceState.checkedOut ? '✓ Checked Out' : '✓ Check Out';
     }
 
-    async function performAction(endpoint, successMsg, successStatus, alreadyMsg = 'Already done today') {
+    async function performAction(endpoint, successMsg, successStatus, alreadyMsg) {
       if (isProcessing) return;
       isProcessing = true;
       updateButtonStates();
@@ -321,8 +277,7 @@
         const msg = err.message.toLowerCase();
         if (msg.includes('already') || msg.includes('checked') || msg.includes('duplicate')) {
           showMessage(alreadyMsg, 'error');
-          // Force sync state in case server rejected
-          await fetchTodayAttendance();
+          await fetchTodayAttendance(); // sync state
         } else {
           showMessage(`Error: ${err.message}`, 'error');
         }
@@ -336,16 +291,8 @@
       performAction('checkin', '✓ Checked in successfully!', 'You are now marked as present.', '⚠️ You have already checked in today!');
     }
 
-    function lunchOut() {
-      performAction('lunchout', '🍽️ Lunch out recorded!', 'Enjoy your lunch break!', '⚠️ Lunch out already recorded!');
-    }
-
-    function lunchIn() {
-      performAction('lunchin', '🍽️ Lunch in recorded!', 'Welcome back! Continue working.', '⚠️ Lunch in already recorded!');
-    }
-
     function checkOut() {
-      performAction('checkout', '✓ Checked out successfully!', 'Have a great day! See you tomorrow.', '⚠️ You have already checked out!');
+      performAction('checkout', '✓ Checked out successfully!', 'Have a great day! See you tomorrow.', '⚠️ You have already checked out today!');
     }
 
     async function logout() {
@@ -363,15 +310,14 @@
       window.location = '/';
     }
 
-    // ─── Initialization ────────────────────────────────────────────────
     window.addEventListener('DOMContentLoaded', async () => {
       if (!getToken()) {
         window.location = '/employee-login';
         return;
       }
 
-      await fetchTodayAttendance();           // Load real state on page open
-      setInterval(fetchTodayAttendance, 120000); // Refresh every 2 minutes
+      await fetchTodayAttendance();
+      setInterval(fetchTodayAttendance, 120000); // every 2 min
     });
   </script>
 </body>
