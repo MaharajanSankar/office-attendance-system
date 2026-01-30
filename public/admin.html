@@ -335,13 +335,22 @@
       return `${String(hours).padStart(2, '0')}:${minutes} ${ampm}`;
     }
 
-    function calculateWorkingHours(checkIn, checkOut) {
-      if (!checkIn) return { working: 'Not checked in' };
+    function calculateWorkingHours(checkIn, checkOut, lunchOut, lunchIn) {
+      if (!checkIn) return { working: 'Not checked in', breakHours: '—' };
 
       const start = new Date(checkIn).getTime();
-      const now = Date.now();
-      let end = checkOut ? new Date(checkOut).getTime() : now;
+      let end = checkOut ? new Date(checkOut).getTime() : Date.now(); // use current time if not checked out yet
+
       let totalMs = end - start;
+      let breakMs = 0;
+
+      if (lunchOut && lunchIn) {
+        breakMs = new Date(lunchIn).getTime() - new Date(lunchOut).getTime();
+        if (breakMs > 0) totalMs -= breakMs;
+      } else if (lunchOut) {
+        // Lunch started but not finished → subtract ongoing break
+        breakMs = Date.now() - new Date(lunchOut).getTime();
+      }
 
       const formatMs = (ms) => {
         if (ms <= 0) return '—';
@@ -349,14 +358,15 @@
         const m = Math.floor((ms % 3600000) / 60000);
         const s = Math.floor((ms % 60000) / 1000);
         let str = '';
-        if (h > 0) str += h + 'h ';
-        if (m > 0 || h > 0) str += m + 'm ';
-        if (s > 0 || m > 0 || h > 0) str += s + 's';
+        if (h) str += h + 'h ';
+        if (m || h) str += m + 'm ';
+        if (s || m || h) str += s + 's';
         return str.trim() || '0s';
       };
 
       return {
-        working: formatMs(totalMs)
+        working: formatMs(totalMs),
+        breakHours: breakMs > 0 ? formatMs(breakMs) : '—'
       };
     }
 
@@ -395,6 +405,7 @@
                 <th style="padding: 16px; text-align: center; font-weight: 600;">Lunch In</th>
                 <th style="padding: 16px; text-align: center; font-weight: 600;">Check-out</th>
                 <th style="padding: 16px; text-align: center; font-weight: 600;">Work Hours</th>
+                <th style="padding: 16px; text-align: center; font-weight: 600; border-radius: 0 8px 0 0;">Break Hours</th>
               </tr>
             </thead>
             <tbody>
@@ -406,12 +417,6 @@
           const empName = record.employeeId?.name || '—';
           const empId = record.employeeId?.employeeId || record.employeeId?._id || '—';
 
-<<<<<<< HEAD
-          const checkIn  = formatTimeAMPM(record.checkInTime);
-          const checkOut = formatTimeAMPM(record.checkOutTime);
-
-          const hoursInfo = calculateWorkingHours(record.checkInTime, record.checkOutTime);
-=======
           // Try all reasonable field name variations
           const checkIn = formatTimeAMPM(record.checkIn || record.checkInTime || record.checkin || record.checkInDate);
           const lunchOut = formatTimeAMPM(record.lunchOut || record.lunchOutTime);
@@ -424,17 +429,12 @@
             record.lunchOut || record.lunchOutTime,
             record.lunchIn || record.lunchInTime
           );
->>>>>>> ef71860535bdecd10557f3a69d24c40e1c8879ab
 
           const statusBadge = `
             <span style="background: ${record.status === 'present' ? '#dffcf0' : '#fce8e6'}; 
                          color: ${record.status === 'present' ? '#00875a' : '#de350b'}; 
                          padding: 6px 12px; border-radius: 6px; font-size: 0.8rem; font-weight: 700;">
-<<<<<<< HEAD
-              ${record.status === 'present' ? '✓ PRESENT' : '✗ ABSENT'}${!checkOut || checkOut === '—' ? ' (ongoing)' : ''}
-=======
               ${record.status === 'present' ? '✓ PRESENT' : '✗ ABSENT'}${!record.checkOut && record.checkIn ? ' (ongoing)' : ''}
->>>>>>> ef71860535bdecd10557f3a69d24c40e1c8879ab
             </span>
           `;
 
@@ -448,6 +448,7 @@
               <td style="padding: 14px 16px; text-align: center; color: ${lunchIn === '—' ? '#999' : '#0066ff'}; font-weight: 600;">${lunchIn}</td>
               <td style="padding: 14px 16px; text-align: center; color: ${checkOut === '—' ? '#999' : '#de350b'}; font-weight: 600;">${checkOut}</td>
               <td style="padding: 14px 16px; text-align: center; color: #0066ff; font-weight: 700; background: #f0f4ff; border-radius: 4px;">${hoursInfo.working}</td>
+              <td style="padding: 14px 16px; text-align: center; color: #ff991f; font-weight: 700; background: #fffbf0; border-radius: 4px;">${hoursInfo.breakHours}</td>
             </tr>
           `;
         });
