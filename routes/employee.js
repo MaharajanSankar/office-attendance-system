@@ -9,10 +9,10 @@ const { authenticateToken } = require('../middleware/auth');
  * GET IP Address from request
  */
 const getClientIp = (req) => {
-  return req.headers['x-forwarded-for'] || 
-         req.connection.remoteAddress || 
-         req.socket.remoteAddress || 
-         'Unknown';
+  return req.headers['x-forwarded-for'] ||
+    req.connection.remoteAddress ||
+    req.socket.remoteAddress ||
+    'Unknown';
 };
 
 // Apply authentication to all employee routes
@@ -78,11 +78,54 @@ router.get('/my-logs', async (req, res) => {
   }
 });
 
+// Get today's attendance status (consolidated)
+router.get('/today-status', async (req, res) => {
+  try {
+    const today = new Date().toISOString().split('T')[0];
+
+    const allRecords = await Attendance.find({
+      employeeId: req.user.id,
+      date: today
+    }).sort({ createdAt: 1 });
+
+    // Consolidate all records into a single status
+    const attendance = {
+      date: today,
+      checkInTime: null,
+      lunchOutTime: null,
+      lunchInTime: null,
+      checkOutTime: null,
+      status: 'absent'
+    };
+
+    allRecords.forEach(record => {
+      if (record.checkInTime) {
+        attendance.checkInTime = record.checkInTime;
+        attendance.status = 'present';
+      }
+      if (record.lunchOutTime) attendance.lunchOutTime = record.lunchOutTime;
+      if (record.lunchInTime) attendance.lunchInTime = record.lunchInTime;
+      if (record.checkOutTime) attendance.checkOutTime = record.checkOutTime;
+    });
+
+    res.json({
+      success: true,
+      attendance
+    });
+  } catch (error) {
+    console.error('Get today status error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch today\'s status'
+    });
+  }
+});
+
 // Check In
 router.post('/checkin', async (req, res) => {
   try {
     const today = new Date().toISOString().split('T')[0];
-    
+
     const attendance = await Attendance.mark({
       employeeId: req.user.id,
       date: today,
@@ -123,7 +166,7 @@ router.post('/checkin', async (req, res) => {
 router.post('/lunchout', async (req, res) => {
   try {
     const today = new Date().toISOString().split('T')[0];
-    
+
     const attendance = await Attendance.mark({
       employeeId: req.user.id,
       date: today,
@@ -164,7 +207,7 @@ router.post('/lunchout', async (req, res) => {
 router.post('/lunchin', async (req, res) => {
   try {
     const today = new Date().toISOString().split('T')[0];
-    
+
     const attendance = await Attendance.mark({
       employeeId: req.user.id,
       date: today,
@@ -205,11 +248,11 @@ router.post('/lunchin', async (req, res) => {
 router.post('/checkout', async (req, res) => {
   try {
     const today = new Date().toISOString().split('T')[0];
-    
+
     const attendance = await Attendance.mark({
       employeeId: req.user.id,
       date: today,
-      status: 'present',
+      status: 'check-out',
       remarks: 'Checked out',
       markedBy: req.user.email
     });

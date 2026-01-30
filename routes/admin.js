@@ -10,10 +10,10 @@ const { authenticateToken, requireAdmin } = require('../middleware/auth');
  * GET IP Address from request
  */
 const getClientIp = (req) => {
-  return req.headers['x-forwarded-for'] || 
-         req.connection.remoteAddress || 
-         req.socket.remoteAddress || 
-         'Unknown';
+  return req.headers['x-forwarded-for'] ||
+    req.connection.remoteAddress ||
+    req.socket.remoteAddress ||
+    'Unknown';
 };
 
 // Apply authentication and admin check to all routes
@@ -26,7 +26,7 @@ router.use(requireAdmin);
 router.get('/employees', async (req, res) => {
   try {
     const employees = await Employee.find({ isActive: true }).select('-password');
-    
+
     res.json({
       success: true,
       employees
@@ -44,7 +44,7 @@ router.get('/employees', async (req, res) => {
 router.get('/employees/:id', async (req, res) => {
   try {
     const employee = await Employee.findById(req.params.id).select('-password');
-    
+
     if (!employee) {
       return res.status(404).json({
         success: false,
@@ -105,14 +105,14 @@ router.post('/employees', async (req, res) => {
     });
   } catch (error) {
     console.error('Create employee error:', error);
-    
+
     if (error.code === 11000) {
       return res.status(400).json({
         success: false,
         message: 'Email or Employee ID already exists'
       });
     }
-    
+
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to create employee'
@@ -152,14 +152,14 @@ router.put('/employees/:id', async (req, res) => {
     });
   } catch (error) {
     console.error('Update employee error:', error);
-    
+
     if (error.code === 11000) {
       return res.status(400).json({
         success: false,
         message: 'Email or Employee ID already exists'
       });
     }
-    
+
     res.status(500).json({
       success: false,
       message: 'Failed to update employee'
@@ -297,10 +297,49 @@ router.post('/attendance/bulk', async (req, res) => {
   }
 });
 
-// Get attendance by date
+// Get attendance by date (consolidated view)
 router.get('/attendance/date/:date', async (req, res) => {
   try {
-    const records = await Attendance.getByDate(req.params.date);
+    const allRecords = await Attendance.find({ date: req.params.date })
+      .populate('employeeId', 'name email employeeId department')
+      .sort({ createdAt: 1 });
+
+    // Group records by employee
+    const employeeMap = new Map();
+
+    allRecords.forEach(record => {
+      const empId = record.employeeId?._id?.toString();
+      if (!empId) return;
+
+      if (!employeeMap.has(empId)) {
+        employeeMap.set(empId, {
+          employeeId: record.employeeId,
+          date: record.date,
+          status: 'absent',
+          checkInTime: null,
+          lunchOutTime: null,
+          lunchInTime: null,
+          checkOutTime: null,
+          remarks: record.remarks || ''
+        });
+      }
+
+      const consolidated = employeeMap.get(empId);
+
+      // Merge times from all records
+      if (record.checkInTime) {
+        consolidated.checkInTime = record.checkInTime;
+        consolidated.status = 'present';
+      }
+      if (record.lunchOutTime) consolidated.lunchOutTime = record.lunchOutTime;
+      if (record.lunchInTime) consolidated.lunchInTime = record.lunchInTime;
+      if (record.checkOutTime) consolidated.checkOutTime = record.checkOutTime;
+
+      // Update remarks if more recent record has remarks
+      if (record.remarks) consolidated.remarks = record.remarks;
+    });
+
+    const records = Array.from(employeeMap.values());
 
     res.json({
       success: true,
@@ -372,7 +411,7 @@ router.get('/attendance/report', async (req, res) => {
 router.get('/dashboard/stats', async (req, res) => {
   try {
     const today = new Date().toISOString().split('T')[0];
-    
+
     const employees = await Employee.find({ isActive: true });
     const todayAttendance = await Attendance.getByDate(today);
 
