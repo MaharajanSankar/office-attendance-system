@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -145,6 +146,7 @@
     }
   </style>
 </head>
+
 <body>
   <div class="admin-container">
     <div class="admin-header">
@@ -216,7 +218,7 @@
     }
 
     async function api(path, opts = {}) {
-      opts.headers = Object.assign({'Content-Type': 'application/json'}, opts.headers || {});
+      opts.headers = Object.assign({ 'Content-Type': 'application/json' }, opts.headers || {});
       const token = getToken();
       if (token) {
         opts.headers['Authorization'] = `Bearer ${token}`;
@@ -240,7 +242,7 @@
         window.location = '/admin-login';
         return;
       }
-      
+
       verifySession();
       setInterval(verifySession, 5 * 60 * 1000);
       loadUsers();
@@ -253,7 +255,7 @@
             'Authorization': `Bearer ${getToken()}`
           }
         });
-        
+
         if (!response.ok || response.status === 401) {
           localStorage.removeItem('token');
           window.location = '/admin-login';
@@ -279,7 +281,7 @@
         const data = await api(`${API_BASE}/admin/employees`);
         const ul = document.getElementById('users');
         ul.innerHTML = '';
-        
+
         if (!data.employees || data.employees.length === 0) {
           ul.innerHTML = '<li>No employees found</li>';
           return;
@@ -371,7 +373,7 @@
         let records = data.records || [];
 
         if (empIdFilter) {
-          records = records.filter(r => 
+          records = records.filter(r =>
             (r.employeeId?.employeeId || r.employeeId?._id || '') === empIdFilter
           );
         }
@@ -389,6 +391,8 @@
                 <th style="padding: 16px; text-align: left; font-weight: 600;">Emp ID</th>
                 <th style="padding: 16px; text-align: center; font-weight: 600;">Status</th>
                 <th style="padding: 16px; text-align: center; font-weight: 600;">Check-in</th>
+                <th style="padding: 16px; text-align: center; font-weight: 600;">Lunch Out</th>
+                <th style="padding: 16px; text-align: center; font-weight: 600;">Lunch In</th>
                 <th style="padding: 16px; text-align: center; font-weight: 600;">Check-out</th>
                 <th style="padding: 16px; text-align: center; font-weight: 600;">Work Hours</th>
               </tr>
@@ -402,16 +406,35 @@
           const empName = record.employeeId?.name || '—';
           const empId = record.employeeId?.employeeId || record.employeeId?._id || '—';
 
+<<<<<<< HEAD
           const checkIn  = formatTimeAMPM(record.checkInTime);
           const checkOut = formatTimeAMPM(record.checkOutTime);
 
           const hoursInfo = calculateWorkingHours(record.checkInTime, record.checkOutTime);
+=======
+          // Try all reasonable field name variations
+          const checkIn = formatTimeAMPM(record.checkIn || record.checkInTime || record.checkin || record.checkInDate);
+          const lunchOut = formatTimeAMPM(record.lunchOut || record.lunchOutTime);
+          const lunchIn = formatTimeAMPM(record.lunchIn || record.lunchInTime);
+          const checkOut = formatTimeAMPM(record.checkOut || record.checkOutTime || record.checkout || record.checkOutDate);
+
+          const hoursInfo = calculateWorkingHours(
+            record.checkIn || record.checkInTime,
+            record.checkOut || record.checkOutTime,
+            record.lunchOut || record.lunchOutTime,
+            record.lunchIn || record.lunchInTime
+          );
+>>>>>>> ef71860535bdecd10557f3a69d24c40e1c8879ab
 
           const statusBadge = `
             <span style="background: ${record.status === 'present' ? '#dffcf0' : '#fce8e6'}; 
                          color: ${record.status === 'present' ? '#00875a' : '#de350b'}; 
                          padding: 6px 12px; border-radius: 6px; font-size: 0.8rem; font-weight: 700;">
+<<<<<<< HEAD
               ${record.status === 'present' ? '✓ PRESENT' : '✗ ABSENT'}${!checkOut || checkOut === '—' ? ' (ongoing)' : ''}
+=======
+              ${record.status === 'present' ? '✓ PRESENT' : '✗ ABSENT'}${!record.checkOut && record.checkIn ? ' (ongoing)' : ''}
+>>>>>>> ef71860535bdecd10557f3a69d24c40e1c8879ab
             </span>
           `;
 
@@ -421,6 +444,8 @@
               <td style="padding: 14px 16px; color: #666; font-family: monospace; background: #f5f7fa; border-radius: 4px;">${empId}</td>
               <td style="padding: 14px 16px; text-align: center;">${statusBadge}</td>
               <td style="padding: 14px 16px; text-align: center; color: ${checkIn === '—' ? '#999' : '#00875a'}; font-weight: 600;">${checkIn}</td>
+              <td style="padding: 14px 16px; text-align: center; color: ${lunchOut === '—' ? '#999' : '#ff991f'}; font-weight: 600;">${lunchOut}</td>
+              <td style="padding: 14px 16px; text-align: center; color: ${lunchIn === '—' ? '#999' : '#0066ff'}; font-weight: 600;">${lunchIn}</td>
               <td style="padding: 14px 16px; text-align: center; color: ${checkOut === '—' ? '#999' : '#de350b'}; font-weight: 600;">${checkOut}</td>
               <td style="padding: 14px 16px; text-align: center; color: #0066ff; font-weight: 700; background: #f0f4ff; border-radius: 4px;">${hoursInfo.working}</td>
             </tr>
@@ -430,7 +455,7 @@
         tableHTML += '</tbody></table>';
         document.getElementById('attList').innerHTML = tableHTML;
       } catch (e) {
-        document.getElementById('attList').innerHTML = 
+        document.getElementById('attList').innerHTML =
           `<p style="color: red; padding: 16px; background: #ffebe6; border-radius: 6px; text-align: center;">
              ❌ ${e.message || 'Failed to load attendance records'}
            </p>`;
@@ -442,4 +467,5 @@
     }
   </script>
 </body>
+
 </html>

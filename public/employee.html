@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -135,6 +136,7 @@
         opacity: 0;
         transform: translateY(-10px);
       }
+
       to {
         opacity: 1;
         transform: translateY(0);
@@ -154,6 +156,7 @@
     }
   </style>
 </head>
+
 <body>
   <div class="employee-container">
     <div class="employee-header">
@@ -169,7 +172,7 @@
     <div class="employee-card">
       <h3>🕐 Today's Attendance</h3>
       <div style="background: #f0f4ff; padding: 12px; border-radius: 6px; margin-bottom: 16px; font-size: 0.85rem; border-left: 3px solid #0066ff;">
-        <strong>📋 Workflow:</strong> Check In → Check Out (once per day)
+        <strong>📋 Workflow:</strong> Check In → Lunch Out → Lunch In → Check Out
       </div>
       <div class="button-grid">
         <button id="checkInBtn" class="btn-checkin" onclick="checkIn()">✓ Check In</button>
@@ -189,8 +192,6 @@
       checkedIn: false,
       checkedOut: false
     };
-
-    let isProcessing = false;
 
     function showMessage(message, type = 'info') {
       const msgDiv = document.getElementById('message');
@@ -232,6 +233,8 @@
         const data = await api('/employee/today-status');
         if (data?.attendance) {
           attendanceState.checkedIn  = !!data.attendance.checkInTime;
+          attendanceState.lunchedOut = !!data.attendance.lunchOutTime;
+          attendanceState.lunchedIn  = !!data.attendance.lunchInTime;
           attendanceState.checkedOut = !!data.attendance.checkOutTime;
 
           updateButtonStates();
@@ -254,16 +257,22 @@
       const ci = document.getElementById('checkInBtn');
       const co = document.getElementById('checkOutBtn');
 
-      if (!ci || !co) return;
+      if (!ci || !lo || !li || !co) return;
+
+      const lunchIncomplete = attendanceState.lunchedOut && !attendanceState.lunchedIn;
 
       ci.disabled = attendanceState.checkedIn || isProcessing;
-      co.disabled = !attendanceState.checkedIn || attendanceState.checkedOut || isProcessing;
+      lo.disabled = !attendanceState.checkedIn || attendanceState.lunchedOut || attendanceState.checkedOut || lunchIncomplete || isProcessing;
+      li.disabled = !attendanceState.lunchedOut || attendanceState.lunchedIn || attendanceState.checkedOut || isProcessing;
+      co.disabled = !attendanceState.checkedIn || attendanceState.checkedOut || lunchIncomplete || isProcessing;
 
       ci.textContent = attendanceState.checkedIn ? '✓ Checked In' : '✓ Check In';
+      lo.textContent = attendanceState.lunchedOut ? '✓ Lunched Out' : '🍽️ Lunch Out';
+      li.textContent = attendanceState.lunchedIn  ? '✓ Lunched In'  : '🍽️ Lunch In';
       co.textContent = attendanceState.checkedOut ? '✓ Checked Out' : '✓ Check Out';
     }
 
-    async function performAction(endpoint, successMsg, successStatus, alreadyMsg) {
+    async function performAction(endpoint, successMsg, successStatus, alreadyMsg = 'Already done today') {
       if (isProcessing) return;
       isProcessing = true;
       updateButtonStates();
@@ -281,9 +290,6 @@
         } else {
           showMessage(`Error: ${err.message}`, 'error');
         }
-      } finally {
-        isProcessing = false;
-        updateButtonStates();
       }
     }
 
@@ -321,4 +327,5 @@
     });
   </script>
 </body>
+
 </html>
